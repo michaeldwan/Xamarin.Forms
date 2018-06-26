@@ -126,12 +126,21 @@ namespace Xamarin.Forms.Controls
 			evaluateJsWebViewSourceContainer.ContainerLayout.Children.Add(resultsLabel);
 			evaluateJsWebViewSourceContainer.ContainerLayout.Children.Add(execButton);
 
+			var sizeToContentViewSourceContainer = new ViewContainer<WebView>(Test.WebView.SizeToContent,
+				new WebView
+				{
+					Source = new UrlWebViewSource { Url = "https://www.google.com" },
+					SizeToContent = WebViewSizeToContent.Height,
+					HeightRequest = 100
+				}
+			);
 
 			Add (urlWebViewSourceContainer);
 			Add (htmlWebViewSourceContainer);
 			Add (htmlFileWebSourceContainer);
 			Add (javascriptAlertWebSourceContainer);
 			Add (evaluateJsWebViewSourceContainer);
+			Add(sizeToContentViewSourceContainer);
 		}
 	}
 }

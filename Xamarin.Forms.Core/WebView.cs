@@ -37,6 +37,8 @@ namespace Xamarin.Forms
 
 		public static readonly BindableProperty CanGoForwardProperty = CanGoForwardPropertyKey.BindableProperty;
 
+		public static readonly BindableProperty SizeToContentProperty = BindableProperty.Create(nameof(SizeToContent), typeof(WebViewSizeToContent), typeof(WebView), WebViewSizeToContent.None);
+
 		readonly Lazy<PlatformConfigurationRegistry<WebView>> _platformConfigurationRegistry;
 
 		public WebView()
@@ -73,6 +75,12 @@ namespace Xamarin.Forms
 		{
 			get { return (WebViewSource)GetValue(SourceProperty); }
 			set { SetValue(SourceProperty, value); }
+		}
+
+		public WebViewSizeToContent SizeToContent
+		{
+			get { return (WebViewSizeToContent)GetValue(SizeToContentProperty); }
+			set { SetValue(SizeToContentProperty, value); }
 		}
 
 		public void Eval(string script)
@@ -174,6 +182,20 @@ namespace Xamarin.Forms
 		public void SendNavigating(WebNavigatingEventArgs args)
 		{
 			Navigating?.Invoke(this, args);
+		}
+
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public void OnContentSizeChanged(Size size)
+		{
+			var dimension = SizeToContent;
+			if (size.Height > 0 && (dimension == WebViewSizeToContent.Height || dimension == WebViewSizeToContent.All))
+			{
+				HeightRequest = size.Height;
+			}
+			if (size.Width > 0 && (dimension == WebViewSizeToContent.Width || dimension == WebViewSizeToContent.All))
+			{
+				WidthRequest = size.Width;
+			}
 		}
 
 		public IPlatformElementConfiguration<T, WebView> On<T>() where T : IConfigPlatform

@@ -57,6 +57,7 @@ namespace Xamarin.Forms.Platform.iOS
 			_events.LoadEvents(this);
 
 			Load();
+			ConfigureSizeChangeObserver();
 
 			OnElementChanged(new VisualElementChangedEventArgs(oldElement, element));
 
@@ -111,6 +112,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 				_tracker?.Dispose();
 				_packager?.Dispose();
+				_contentSizeKVO?.Dispose();
 			}
 
 			base.Dispose(disposing);
@@ -126,7 +128,13 @@ namespace Xamarin.Forms.Platform.iOS
 		void HandlePropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
 			if (e.PropertyName == WebView.SourceProperty.PropertyName)
+			{
 				Load();
+			}
+			else if (e.PropertyName == WebView.SizeToContentProperty.PropertyName)
+			{
+				ConfigureSizeChangeObserver();
+			}
 		}
 
 		void Load()
@@ -266,6 +274,45 @@ namespace Xamarin.Forms.Platform.iOS
 			{
 				return _renderer?.Request?.Url?.AbsoluteUrl?.ToString();
 			}
+		}
+
+		IDisposable _contentSizeKVO;
+
+		void ConfigureSizeChangeObserver()
+		{
+			if (WebView.SizeToContent == WebViewSizeToContent.None)
+			{
+				RemoveContentSizeObserver();
+			}
+			else
+			{
+				SetupContentSizeObserver();
+			}
+		}
+
+		void SetupContentSizeObserver()
+		{
+			if (_contentSizeKVO != null)
+			{
+				return;
+			}
+			_contentSizeKVO = ScrollView.AddObserver("contentSize", NSKeyValueObservingOptions.OldNew, ScrollViewContentSizeChanged);
+		}
+
+		void RemoveContentSizeObserver()
+		{
+			_contentSizeKVO?.Dispose();
+			_contentSizeKVO = null;
+		}
+
+		void ScrollViewContentSizeChanged(NSObservedChange nsObservedChange)
+		{
+			if (nsObservedChange.NewValue.IsEqual(nsObservedChange.OldValue))
+			{
+				return;
+			}
+			var newSize = ((NSValue)nsObservedChange.NewValue).CGSizeValue;
+			WebView.OnContentSizeChanged(new Size(newSize.Width, newSize.Height));
 		}
 
 		#region IPlatformRenderer implementation

@@ -10,10 +10,11 @@ using Xamarin.Forms.Internals;
 using MixedContentHandling = Android.Webkit.MixedContentHandling;
 using AWebView = Android.Webkit.WebView;
 using System.Threading.Tasks;
+using Android.Runtime;
 
 namespace Xamarin.Forms.Platform.Android
 {
-	public class WebViewRenderer : ViewRenderer<WebView, AWebView>, IWebViewDelegate
+	public class WebViewRenderer : ViewRenderer<WebView, XamarinFormsWebView>, IWebViewDelegate
 	{
 		bool _ignoreSourceChanges;
 		FormsWebChromeClient _webChromeClient;
@@ -43,12 +44,12 @@ namespace Xamarin.Forms.Platform.Android
 
 		protected override void Dispose(bool disposing)
 		{
-			if (disposing)
-			{
-				if (Element != null)
-				{
-					if (Control != null)
+			if (disposing) {
+				if (Element != null) {
+					if (Control != null) {
 						Control.StopLoading();
+						Control.SizeChanged -= WebView_SizeChanged;
+					}
 					ElementController.EvalRequested -= OnEvalRequested;
 					ElementController.GoBackRequested -= OnGoBackRequested;
 					ElementController.GoForwardRequested -= OnGoForwardRequested;
@@ -70,9 +71,9 @@ namespace Xamarin.Forms.Platform.Android
 			return new Size(Context.ToPixels(40), Context.ToPixels(40));
 		}
 
-		protected override AWebView CreateNativeControl()
+		protected override XamarinFormsWebView CreateNativeControl()
 		{
-			return new AWebView(Context);
+			return new XamarinFormsWebView(Context);
 		}
 
 		protected override void OnElementChanged(ElementChangedEventArgs<WebView> e)
@@ -93,6 +94,7 @@ namespace Xamarin.Forms.Platform.Android
 
 				webView.Settings.JavaScriptEnabled = true;
 				webView.Settings.DomStorageEnabled = true;
+				webView.SizeChanged += WebView_SizeChanged;
 				SetNativeControl(webView);
 			}
 
@@ -114,6 +116,7 @@ namespace Xamarin.Forms.Platform.Android
 				newElementController.GoForwardRequested += OnGoForwardRequested;
 
 				UpdateMixedContentMode();
+				UpdateSizeToContent();
 			}
 
 			Load();
@@ -130,6 +133,9 @@ namespace Xamarin.Forms.Platform.Android
 					break;
 				case "MixedContentMode":
 					UpdateMixedContentMode();
+					break;
+				case nameof(WebView.SizeToContent):
+					UpdateSizeToContent();
 					break;
 			}
 		}
@@ -189,6 +195,16 @@ namespace Xamarin.Forms.Platform.Android
 			{
 				Control.Settings.MixedContentMode = (MixedContentHandling)Element.OnThisPlatform().MixedContentMode();
 			}
+		}
+
+		void UpdateSizeToContent()
+		{
+			Control.ObserveSizeChanges = Element.SizeToContent != WebViewSizeToContent.None;
+		}
+
+		void WebView_SizeChanged(object sender, EventArgs e)
+		{
+			Element.OnContentSizeChanged(new Size(0, Control.ContentHeight));
 		}
 
 		class WebClient : WebViewClient
@@ -278,6 +294,47 @@ namespace Xamarin.Forms.Platform.Android
 			{
 				string json = ((Java.Lang.String)result).ToString();
 				source.SetResult(json);
+			}
+		}
+	}
+
+	public class XamarinFormsWebView : AWebView
+	{
+		public EventHandler SizeChanged;
+
+		bool _observeSizeChanges;
+		public bool ObserveSizeChanges {
+			get => _observeSizeChanges;
+			set {
+				if (_observeSizeChanges != value) {
+					_observeSizeChanges = value;
+					if (_observeSizeChanges) {
+						OnSizeChange();
+					}
+				}
+			}
+		}
+
+		public XamarinFormsWebView(Context context) : base(context) { }
+
+		protected XamarinFormsWebView(IntPtr javaReference, JniHandleOwnership transfer) : base(javaReference, transfer) { }
+
+		int _previousMesuredHeight = 0;
+
+		public override void Invalidate()
+		{
+			base.Invalidate();
+			if (ObserveSizeChanges) {
+				OnSizeChange();
+			}
+		}
+
+		void OnSizeChange()
+		{
+			var newHeight = ContentHeight;
+			if (newHeight > 0 && _previousMesuredHeight != newHeight) {
+				SizeChanged?.Invoke(this, EventArgs.Empty);
+				_previousMesuredHeight = newHeight;
 			}
 		}
 	}
